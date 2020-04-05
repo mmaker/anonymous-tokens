@@ -9,8 +9,6 @@ use rand::{thread_rng, RngCore};
 
 use poc::construction3::*;
 
-
-
 fn bench_keygen(c: &mut Criterion) {
     c.bench_function("construction3-keygen", move |b| {
         let mut csrng = thread_rng();
@@ -19,8 +17,6 @@ fn bench_keygen(c: &mut Criterion) {
         });
     });
 }
-
-
 
 fn bench_tokengen(c: &mut Criterion) {
     c.bench_function("construction3-tokengen", move |b| {
@@ -33,8 +29,6 @@ fn bench_tokengen(c: &mut Criterion) {
         });
     });
 }
-
-
 
 fn bench_sign(c: &mut Criterion) {
     c.bench_function("construction3-signing", move |b| {
@@ -59,16 +53,13 @@ fn bench_unblind(c: &mut Criterion) {
         let blinded_token = pp.generate_token(&mut csrng);
         let signed_token = keypair.sign(&mut csrng, &blinded_token.to_bytes(), 0);
         let serialized_signature = signed_token.to_bytes().unwrap();
-        b.iter(
-            move || {
-            let blinded_token : TokenBlinded = unsafe { std::mem::transmute_copy(&blinded_token) };
+        b.iter(move || {
+            let blinded_token: TokenBlinded = unsafe { std::mem::transmute_copy(&blinded_token) };
             let signed_token = TokenSigned::from_bytes(&serialized_signature).unwrap();
             blinded_token.unblind(signed_token);
         });
     });
 }
-
-
 
 fn bench_redemption(c: &mut Criterion) {
     c.bench_function("construction3-redeem", move |b| {
@@ -88,8 +79,7 @@ fn bench_redemption(c: &mut Criterion) {
     });
 }
 
-
-criterion_group!{
+criterion_group! {
     name = construction3_benchmarks;
     config = Criterion::default();
     targets = bench_keygen, bench_tokengen, bench_sign, bench_unblind, bench_redemption

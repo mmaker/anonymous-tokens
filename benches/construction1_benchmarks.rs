@@ -9,7 +9,6 @@ use rand::{thread_rng, RngCore};
 
 use poc::construction1::*;
 
-
 fn bench_keygen(c: &mut Criterion) {
     c.bench_function("construction1-keygen", move |b| {
         let mut csrng = thread_rng();
@@ -18,8 +17,6 @@ fn bench_keygen(c: &mut Criterion) {
         });
     });
 }
-
-
 
 fn bench_tokengen(c: &mut Criterion) {
     c.bench_function("construction1-tokengen", move |b| {
@@ -32,8 +29,6 @@ fn bench_tokengen(c: &mut Criterion) {
         });
     });
 }
-
-
 
 fn bench_sign(c: &mut Criterion) {
     c.bench_function("construction1-sign", move |b| {
@@ -58,16 +53,13 @@ fn bench_unblind(c: &mut Criterion) {
         let blinded_token = pp.generate_token(&mut csrng);
         let signed_token = keypair.sign(&blinded_token.to_bytes());
         let serialized_signature = signed_token.to_bytes().unwrap();
-        b.iter(
-            move || {
-            let blinded_token : TokenBlinded = unsafe { std::mem::transmute_copy(&blinded_token) };
+        b.iter(move || {
+            let blinded_token: TokenBlinded = unsafe { std::mem::transmute_copy(&blinded_token) };
             let signed_token = TokenSigned::from_bytes(&serialized_signature).unwrap();
             blinded_token.unblind(signed_token);
         });
     });
 }
-
-
 
 fn bench_redemption(c: &mut Criterion) {
     c.bench_function("construction1-redeem", move |b| {
@@ -87,11 +79,10 @@ fn bench_redemption(c: &mut Criterion) {
     });
 }
 
-
 fn bench_dleq_prove(c: &mut Criterion) {
-    use curve25519_dalek::scalar::Scalar;
-    use curve25519_dalek::ristretto::RistrettoPoint;
     use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::scalar::Scalar;
 
     c.bench_function("dleq-prove", move |b| {
         let mut csrng = thread_rng();
@@ -104,16 +95,22 @@ fn bench_dleq_prove(c: &mut Criterion) {
         b.iter(|| {
             let (proof, _) = dleq::prove_batchable(
                 &mut transcript,
-                dleq::ProveAssignments { x:&x, X: &X, T: &T, G: &G, W: &W }
+                dleq::ProveAssignments {
+                    x: &x,
+                    X: &X,
+                    T: &T,
+                    G: &G,
+                    W: &W,
+                },
             );
         });
     });
 }
 
 fn bench_dleq_verify(c: &mut Criterion) {
-    use curve25519_dalek::scalar::Scalar;
-    use curve25519_dalek::ristretto::RistrettoPoint;
     use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::scalar::Scalar;
 
     c.bench_function("dleq-verify", move |b| {
         let mut csrng = thread_rng();
@@ -125,7 +122,13 @@ fn bench_dleq_verify(c: &mut Criterion) {
         let mut transcript = dleq::Transcript::new(b"dleq-bench");
         let (proof, points) = dleq::prove_batchable(
             &mut transcript,
-            dleq::ProveAssignments { x:&x, X: &X, T: &T, G: &G, W: &W }
+            dleq::ProveAssignments {
+                x: &x,
+                X: &X,
+                T: &T,
+                G: &G,
+                W: &W,
+            },
         );
         b.iter(|| {
             let verification = dleq::verify_batchable(
@@ -136,14 +139,13 @@ fn bench_dleq_verify(c: &mut Criterion) {
                     T: &points.T,
                     G: &points.G,
                     W: &points.W,
-                }
+                },
             );
         });
     });
 }
 
-
-criterion_group!{
+criterion_group! {
     name = construction1_benchmarks;
     config = Criterion::default();
     targets = bench_keygen, bench_tokengen, bench_sign, bench_unblind, bench_redemption, bench_dleq_prove, bench_dleq_verify,

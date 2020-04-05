@@ -1,14 +1,13 @@
-use rand_core::{RngCore, CryptoRng};
+use rand_core::{CryptoRng, RngCore};
 
-use curve25519_dalek::ristretto::{RistrettoPoint, CompressedRistretto};
 use curve25519_dalek::constants::RISTRETTO_BASEPOINT_POINT;
+use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sha2::Sha512;
 use zkp::Transcript;
 
 use crate::errors::VerificationError;
-
 
 define_proof! {dleq, "DLEQ Proof", (x), (X, T, W), (G) : X = (x * G), W = (x * T)}
 
@@ -22,26 +21,26 @@ pub struct KeyPair {
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct PublicParams {
     pub(crate) pk: RistrettoPoint,
-    pub(crate) G: RistrettoPoint
+    pub(crate) G: RistrettoPoint,
 }
 
 impl KeyPair {
     pub fn generate<R>(mut csrng: &mut R) -> KeyPair
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let sk = Scalar::random(&mut csrng);
         let G = RISTRETTO_BASEPOINT_POINT;
-        let pp = PublicParams { pk: sk*G, G: G};
+        let pp = PublicParams { pk: sk * G, G: G };
         KeyPair { sk, pp }
     }
 }
 
-
-impl<'a> From::<&'a KeyPair> for PublicParams {
+impl<'a> From<&'a KeyPair> for PublicParams {
     fn from(kp: &'a KeyPair) -> PublicParams {
         kp.pp
     }
 }
-
 
 impl KeyPair {
     pub fn sign(&self, blind_token: &[u8; 32]) -> TokenSigned {
@@ -57,8 +56,9 @@ impl KeyPair {
                 T: &T,
                 G: &self.pp.G,
                 W: &signature,
-            });
-        TokenSigned {signature, proof}
+            },
+        );
+        TokenSigned { signature, proof }
     }
 
     pub fn verify(&self, token: &Token) -> Result<(), VerificationError> {
@@ -66,7 +66,7 @@ impl KeyPair {
         if expected_signature == token.signature {
             Result::Ok(())
         } else {
-           Result::Err(VerificationError)
+            Result::Err(VerificationError)
         }
     }
 }
@@ -84,7 +84,7 @@ pub struct TokenBlinded {
 }
 
 impl TokenBlinded {
-    pub fn unblind(self, ts: TokenSigned) ->  Result<Token, zkp::ProofError> {
+    pub fn unblind(self, ts: TokenSigned) -> Result<Token, zkp::ProofError> {
         let mut transcript = Transcript::new(b"DLEQ");
         let verification = dleq::verify_batchable(
             &ts.proof,
@@ -94,28 +94,27 @@ impl TokenBlinded {
                 T: &self.public.compress(),
                 G: &self.pp.G.compress(),
                 W: &ts.signature.compress(),
-            }
+            },
         );
-        verification.map(|_|
-            Token {
-                ticket: self.secret.ticket,
-                signature: self.secret.blind * ts.signature,
-            }
-        )
+        verification.map(|_| Token {
+            ticket: self.secret.ticket,
+            signature: self.secret.blind * ts.signature,
+        })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
-        return self.public.compress().to_bytes()
+        return self.public.compress().to_bytes();
     }
-
 }
 impl TokenSecret {
     pub fn generate<R>(mut csrng: &mut R) -> Self
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let mut ticket = [0u8; 32];
         csrng.fill_bytes(&mut ticket);
         let blind = Scalar::random(&mut csrng);
-        Self {ticket, blind}
+        Self { ticket, blind }
     }
 }
 
@@ -143,12 +142,15 @@ pub struct Token {
 
 impl PublicParams {
     pub fn generate_token<R>(&self, mut csrng: &mut R) -> TokenBlinded
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let secret = TokenSecret::generate(&mut csrng);
-        let public = secret.blind.invert() * RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
+        let public =
+            secret.blind.invert() * RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
         // XXX we can use lifetimes here
         let pp = *self;
-        TokenBlinded {secret, public, pp}
+        TokenBlinded { secret, public, pp }
     }
 
     pub fn to_bytes(&self) -> bincode::Result<Vec<u8>> {

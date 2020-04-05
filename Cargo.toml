@@ -31,7 +31,10 @@ features = ["serde", "alloc"]
 name = "construction1_benchmarks"
 harness = false
 
-
 [[bench]]
 name = "construction3_benchmarks"
+harness = false
+
+[[bench]]
+name = "construction5_benchmarks"
 harness = false

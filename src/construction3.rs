@@ -1,10 +1,10 @@
-use rand_core::{RngCore, CryptoRng};
+use rand_core::{CryptoRng, RngCore};
 
-use curve25519_dalek::ristretto::{RistrettoPoint, CompressedRistretto};
-use curve25519_dalek::constants::{RISTRETTO_BASEPOINT_POINT, RISTRETTO_BASEPOINT_COMPRESSED};
-use curve25519_dalek::traits::MultiscalarMul;
+use curve25519_dalek::constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT};
+use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
-use serde::{Serialize, Deserialize};
+use curve25519_dalek::traits::MultiscalarMul;
+use serde::{Deserialize, Serialize};
 use sha2::Sha512;
 
 use crate::errors::VerificationError;
@@ -18,13 +18,15 @@ pub struct KeyPair {
 
 #[derive(Clone, Copy)]
 pub struct PublicParams {
-    pk: [RistrettoPoint; 2],
-    gen: [RistrettoPoint; 2],
+    pub(crate) pk: [RistrettoPoint; 2],
+    pub(crate) gen: [RistrettoPoint; 2],
 }
 
 impl KeyPair {
     pub fn generate<R>(mut csrng: &mut R) -> KeyPair
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let sk = [
             [Scalar::random(&mut csrng), Scalar::random(&mut csrng)],
             [Scalar::random(&mut csrng), Scalar::random(&mut csrng)],
@@ -37,22 +39,22 @@ impl KeyPair {
             RistrettoPoint::multiscalar_mul(&sk[0], &gen),
             RistrettoPoint::multiscalar_mul(&sk[1], &gen),
         ];
-        let pp = PublicParams {pk, gen};
+        let pp = PublicParams { pk, gen };
         KeyPair { pp, sk }
     }
 }
 
-
-impl<'a> From::<&'a KeyPair> for PublicParams {
+impl<'a> From<&'a KeyPair> for PublicParams {
     fn from(kp: &'a KeyPair) -> PublicParams {
         kp.pp
     }
 }
 
-
 impl KeyPair {
     pub fn sign<R>(&self, csrng: &mut R, blind_token: &[u8; 32], b: usize) -> TokenSigned
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let mut s = [0u8; 32];
         csrng.fill_bytes(&mut s);
 
@@ -62,7 +64,7 @@ impl KeyPair {
             RistrettoPoint::hash_from_bytes::<Sha512>(&s),
         ];
         let signature = RistrettoPoint::multiscalar_mul(&self.sk[b], &alt_gens);
-        TokenSigned {s, signature}
+        TokenSigned { s, signature }
     }
 
     pub fn verify(&self, token: &Token) -> Result<usize, VerificationError> {
@@ -86,7 +88,6 @@ impl KeyPair {
     }
 }
 
-
 struct TokenSecret {
     pub(crate) ticket: Ticket,
     pub(crate) blind: Scalar,
@@ -99,26 +100,27 @@ pub struct TokenBlinded {
 }
 
 impl TokenBlinded {
-    pub fn unblind(self, ts: TokenSigned) ->  Result<Token, zkp::ProofError> {
-            Ok(Token {
-                ticket: self.secret.ticket,
-                signature: self.secret.blind * ts.signature,
-                S: self.secret.blind * RistrettoPoint::hash_from_bytes::<Sha512>(&ts.s),
-            })
+    pub fn unblind(self, ts: TokenSigned) -> Result<Token, zkp::ProofError> {
+        Ok(Token {
+            ticket: self.secret.ticket,
+            signature: self.secret.blind * ts.signature,
+            S: self.secret.blind * RistrettoPoint::hash_from_bytes::<Sha512>(&ts.s),
+        })
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
-        return self.public.compress().to_bytes()
+        return self.public.compress().to_bytes();
     }
-
 }
 impl TokenSecret {
     pub fn generate<R>(mut csrng: &mut R) -> Self
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let mut ticket = [0u8; 32];
         csrng.fill_bytes(&mut ticket);
         let blind = Scalar::random(&mut csrng);
-        Self {ticket, blind}
+        Self { ticket, blind }
     }
 }
 
@@ -147,12 +149,15 @@ pub struct Token {
 
 impl PublicParams {
     pub fn generate_token<R>(&self, mut csrng: &mut R) -> TokenBlinded
-    where R: RngCore + CryptoRng {
+    where
+        R: RngCore + CryptoRng,
+    {
         let secret = TokenSecret::generate(&mut csrng);
-        let public = secret.blind.invert() * RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
+        let public =
+            secret.blind.invert() * RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
         // XXX we can use lifetimes here
         let pp = *self;
-        TokenBlinded {secret, public, pp}
+        TokenBlinded { secret, public, pp }
     }
 }
 
