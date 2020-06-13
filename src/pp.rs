@@ -8,22 +8,25 @@ use sha2::Sha512;
 use zkp::Transcript;
 
 use crate::errors::VerificationError;
+use crate::Ticket;
 
-define_proof! {dlog, "DLOG Knowledge", (x), (X), (G) : X = (x * G)}
-
-type Ticket = [u8; 32];
+define_proof! {dleq, "DLEQ Proof", (x), (X, T, W), (G) : X = (x * G), W = (x * T)}
 
 pub struct KeyPair {
     pub(crate) pp: PublicParams,
     pub(crate) sk: Scalar,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct PublicParams {
-    pk: RistrettoPoint,
-    generator: RistrettoPoint,
-    // XXX. this can be made into one?
-    proof: zkp::BatchableProof,
+    pub(crate) pk: RistrettoPoint,
+    pub(crate) G: RistrettoPoint,
+}
+
+impl<'a> From<&'a KeyPair> for PublicParams {
+    fn from(kp: &'a KeyPair) -> PublicParams {
+        kp.pp
+    }
 }
 
 impl KeyPair {
@@ -32,44 +35,27 @@ impl KeyPair {
         R: RngCore + CryptoRng,
     {
         let sk = Scalar::random(&mut csrng);
-        let generator = RISTRETTO_BASEPOINT_POINT;
-        let pk = sk * generator;
-        let mut transcript = Transcript::new(b"construction5");
-        let (proof, _) = dlog::prove_batchable(
+        let G = RISTRETTO_BASEPOINT_POINT;
+        let pk = sk * G;
+        let pp = PublicParams { pk, G };
+        KeyPair { sk, pp }
+    }
+
+    pub fn sign(&self, blind_token_bytes: &[u8; 32]) -> Option<TokenSigned> {
+        let T = CompressedRistretto(*blind_token_bytes).decompress()?;
+        let signature = self.sk * T;
+        let mut transcript = Transcript::new(b"DLEQ");
+        let (proof, _) = dleq::prove_batchable(
             &mut transcript,
-            dlog::ProveAssignments {
-                x: &sk,
-                G: &generator,
-                X: &pk,
+            dleq::ProveAssignments {
+                x: &self.sk,
+                X: &self.pp.pk,
+                T: &T,
+                G: &self.pp.G,
+                W: &signature,
             },
         );
-        let pp = PublicParams {
-            pk,
-            generator,
-            proof,
-        };
-        KeyPair { pp, sk }
-    }
-}
-
-impl<'a> From<&'a KeyPair> for PublicParams {
-    fn from(kp: &'a KeyPair) -> PublicParams {
-        kp.pp.clone()
-    }
-}
-
-impl KeyPair {
-    pub fn sign<R>(&self, csrng: &mut R, blind_token: &[u8; 32]) -> TokenSigned
-    where
-        R: RngCore + CryptoRng,
-    {
-        let mut s = [0u8; 32];
-        csrng.fill_bytes(&mut s);
-
-        // XXX this should return an option point
-        let alt_gen = CompressedRistretto(*blind_token).decompress().unwrap();
-        let signature = self.sk * alt_gen;
-        TokenSigned { s, signature }
+        Some(TokenSigned { signature, proof })
     }
 
     pub fn verify(&self, token: &Token) -> Result<(), VerificationError> {
@@ -82,9 +68,10 @@ impl KeyPair {
     }
 }
 
-struct TokenSecret {
+#[derive(Serialize, Deserialize)]
+pub struct TokenSecret {
     pub(crate) ticket: Ticket,
-    pub(crate) blind: [Scalar; 2],
+    pub(crate) blind: Scalar,
 }
 
 pub struct TokenBlinded {
@@ -94,19 +81,33 @@ pub struct TokenBlinded {
 }
 
 impl TokenBlinded {
-    pub fn unblind(self, ts: TokenSigned) -> Result<Token, zkp::ProofError> {
-        let W = self.secret.blind[0].invert() * ts.signature + self.secret.blind[1] * self.pp.pk;
-
-        Ok(Token {
+    pub fn unsafe_unblind(&self, ts: &TokenSigned) -> Result<Token, zkp::ProofError> {
+        let mut transcript = Transcript::new(b"DLEQ");
+        let verification = dleq::verify_batchable(
+            &ts.proof,
+            &mut transcript,
+            dleq::VerifyAssignments {
+                X: &self.pp.pk.compress(),
+                T: &self.public.compress(),
+                G: &self.pp.G.compress(),
+                W: &ts.signature.compress(),
+            },
+        );
+        verification.map(|_| Token {
             ticket: self.secret.ticket,
-            signature: W,
+            signature: self.secret.blind * ts.signature,
         })
     }
 
+    pub fn unblind(self, ts: TokenSigned) -> Result<Token, zkp::ProofError> {
+        self.unsafe_unblind(&ts)
+    }
+
     pub fn to_bytes(&self) -> [u8; 32] {
-        return self.public.compress().to_bytes();
+        self.public.compress().to_bytes()
     }
 }
+
 impl TokenSecret {
     pub fn generate<R>(mut csrng: &mut R) -> Self
     where
@@ -114,16 +115,15 @@ impl TokenSecret {
     {
         let mut ticket = [0u8; 32];
         csrng.fill_bytes(&mut ticket);
-        // XXX ugly
-        let blind = [Scalar::random(&mut csrng), Scalar::random(&mut csrng)];
+        let blind = Scalar::random(&mut csrng);
         Self { ticket, blind }
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TokenSigned {
-    s: Ticket,
     signature: RistrettoPoint,
+    proof: zkp::BatchableProof,
 }
 
 impl TokenSigned {
@@ -148,17 +148,22 @@ impl PublicParams {
         R: RngCore + CryptoRng,
     {
         let secret = TokenSecret::generate(&mut csrng);
-        let T = RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
-        let public = secret.blind[0] * (T - secret.blind[1] * self.generator);
-        let pp = self.clone();
-        // XXX we can use lifetimes here?
+        let hashed_ticket = RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
+        let public = secret.blind.invert() * hashed_ticket;
+        // XXX we can use lifetimes here
+        let pp = *self;
         TokenBlinded { secret, public, pp }
+    }
+
+    pub fn to_bytes(&self) -> bincode::Result<Vec<u8>> {
+        bincode::serialize(&self)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn it_works() {
         let mut csrng = rand::rngs::OsRng;
@@ -166,8 +171,9 @@ mod tests {
 
         let pp = PublicParams::from(&keypair);
         let blinded_token = pp.generate_token(&mut csrng);
-        let signed_token = keypair.sign(&mut csrng, &blinded_token.to_bytes());
-        let token = blinded_token.unblind(signed_token);
+        let signed_token = keypair.sign(&blinded_token.to_bytes());
+        assert!(signed_token.is_some());
+        let token = blinded_token.unblind(signed_token.unwrap());
         assert!(token.is_ok());
         assert!(keypair.verify(&token.unwrap()).is_ok());
     }
