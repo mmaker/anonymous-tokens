@@ -32,5 +32,13 @@ name = "pp_benchmarks"
 harness = false
 
 [[bench]]
+name = "ppnozk_benchmarks"
+harness = false
+
+[[bench]]
+name = "pmbtnozk_benchmarks"
+harness = false
+
+[[bench]]
 name = "nizk_benchmarks"
 harness = false
