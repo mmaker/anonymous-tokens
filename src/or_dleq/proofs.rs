@@ -17,26 +17,26 @@ pub struct OrDleqProof {
 }
 
 pub struct ProveAssignments<'a> {
-    x: &'a Scalar,
-    y: &'a Scalar,
-    b: &'a u8,
-    X0: &'a RistrettoPoint,
-    X1: &'a RistrettoPoint,
-    G: &'a RistrettoPoint,
-    H: &'a RistrettoPoint,
-    T: &'a RistrettoPoint,
-    S: &'a RistrettoPoint,
-    W: &'a RistrettoPoint,
+    pub(crate) x: &'a Scalar,
+    pub(crate) y: &'a Scalar,
+    pub(crate) b: &'a usize,
+    pub(crate) X0: &'a RistrettoPoint,
+    pub(crate) X1: &'a RistrettoPoint,
+    pub(crate) G: &'a RistrettoPoint,
+    pub(crate) H: &'a RistrettoPoint,
+    pub(crate) T: &'a RistrettoPoint,
+    pub(crate) S: &'a RistrettoPoint,
+    pub(crate) W: &'a RistrettoPoint,
 }
 
 pub struct VerifyAssignments<'a> {
-    X0: &'a CompressedRistretto,
-    X1: &'a CompressedRistretto,
-    G: &'a CompressedRistretto,
-    H: &'a CompressedRistretto,
-    T: &'a CompressedRistretto,
-    S: &'a CompressedRistretto,
-    W: &'a CompressedRistretto,
+    pub(crate) X0: &'a CompressedRistretto,
+    pub(crate) X1: &'a CompressedRistretto,
+    pub(crate) G: &'a CompressedRistretto,
+    pub(crate) H: &'a CompressedRistretto,
+    pub(crate) T: &'a CompressedRistretto,
+    pub(crate) S: &'a CompressedRistretto,
+    pub(crate) W: &'a CompressedRistretto,
 }
 
 pub fn prove_compact<'a>(
@@ -54,10 +54,10 @@ pub fn prove_compact<'a>(
     let mut rng = transcript
         .build_rng()
         .rekey_with_witness_bytes(b"witness dlog", &assignments.x.to_bytes())
-        .rekey_with_witness_bytes(b"witness bit", &[*assignments.b])
+        .rekey_with_witness_bytes(b"witness bit", &[*assignments.b as u8])
         .finalize(&mut ChaChaRng::from_seed([0; 32]));
 
-    let b = *assignments.b as usize;
+    let b = *assignments.b;
     let commitment_secrets = [Scalar::random(&mut rng); 2];
     let simulated_scalars = [Scalar::random(&mut rng); 3];
 
@@ -186,7 +186,7 @@ mod tests {
         let W = RistrettoPoint::multiscalar_mul(&[x, y], &[T, S]);
         let X1 = RistrettoPoint::multiscalar_mul(&[x, y], &[G, H]);
         let X0 = RistrettoPoint::random(&mut csrng);
-        let b = 1u8;
+        let b = 1usize;
 
         assert_eq!(X1, RistrettoPoint::identity());
         assert_eq!(W, RistrettoPoint::identity());

@@ -12,11 +12,7 @@ use zkp::Transcript;
 use crate::errors::VerificationError;
 use crate::Ticket;
 
-define_proof! {
-    osdlog, "DLOG Proof", (x0, y0, x1, y1), (X0, X1), (G, H) :
-    X0 = (x0 * G + y0 * H),
-    X1 = (x1 * G + y1 * H)
-}
+use crate::or_dleq;
 
 pub struct KeyPair {
     pub(crate) pp: PublicParams,
@@ -27,7 +23,6 @@ pub struct KeyPair {
 pub struct PublicParams {
     pub(crate) pk: [RistrettoPoint; 2],
     pub(crate) gen: [RistrettoPoint; 2],
-    pub(crate) proof: zkp::CompactProof,
 }
 
 impl<'a> From<&'a KeyPair> for PublicParams {
@@ -54,22 +49,7 @@ impl KeyPair {
             RistrettoPoint::multiscalar_mul(&sk[1], &gen),
         ];
 
-        let mut transcript = Transcript::new(b"DLOG");
-        let (proof, _) = osdlog::prove_compact(
-            &mut transcript,
-            osdlog::ProveAssignments {
-                x0: &sk[0][0],
-                y0: &sk[0][1],
-                x1: &sk[1][1],
-                y1: &sk[1][1],
-                X0: &pk[0],
-                X1: &pk[1],
-                G: &gen[0],
-                H: &gen[1],
-            },
-        );
-
-        let pp = PublicParams { pk, gen, proof };
+        let pp = PublicParams { pk, gen };
         KeyPair { pp, sk }
     }
 
@@ -82,40 +62,47 @@ impl KeyPair {
 
         // XXX this should return an option point
         let alt_gens = [
-            [
-                CompressedRistretto::from_slice(&blind_token[..32]).decompress()?,
-                RistrettoPoint::hash_from_bytes::<Sha512>(&s),
-            ],
-            [
-                CompressedRistretto::from_slice(&blind_token[32..]).decompress()?,
-                RistrettoPoint::hash_from_bytes::<Sha512>(&s),
-            ],
+            CompressedRistretto::from_slice(&blind_token[..32]).decompress()?,
+            RistrettoPoint::hash_from_bytes::<Sha512>(&s),
         ];
-        let signature = RistrettoPoint::multiscalar_mul(&self.sk[b], &alt_gens[b]);
-
-        Some(TokenSigned { s, signature })
+        let signature = RistrettoPoint::multiscalar_mul(&self.sk[b], &alt_gens);
+        let mut transcript = Transcript::new(b"OR-DLEQ");
+        let proof = or_dleq::prove_compact(
+            &mut transcript,
+            or_dleq::ProveAssignments {
+                x: &self.sk[b][0],
+                y: &self.sk[b][1],
+                b: &b,
+                G: &self.pp.gen[0],
+                H: &self.pp.gen[1],
+                T: &alt_gens[0],
+                S: &alt_gens[1],
+                W: &signature,
+                X0: &self.pp.pk[0],
+                X1: &self.pp.pk[1],
+            },
+        );
+        Some(TokenSigned {
+            s,
+            signature,
+            proof,
+        })
     }
 
     pub fn verify(&self, token: &Token) -> Result<usize, VerificationError> {
         let alt_gens = [
-            [
-                RistrettoPoint::hash_from_bytes::<Sha512>(&token.ticket),
-                token.S[0],
-            ],
-            [
-                RistrettoPoint::hash_from_bytes::<Sha512>(&token.ticket),
-                token.S[1],
-            ],
+            RistrettoPoint::hash_from_bytes::<Sha512>(&token.ticket),
+            token.S,
         ];
 
         let possible_signatures = (
-            RistrettoPoint::multiscalar_mul(&self.sk[0], &alt_gens[0]),
-            RistrettoPoint::multiscalar_mul(&self.sk[1], &alt_gens[1]),
+            RistrettoPoint::multiscalar_mul(&self.sk[0], &alt_gens),
+            RistrettoPoint::multiscalar_mul(&self.sk[1], &alt_gens),
         );
 
-        if token.signature[0] == possible_signatures.0 {
+        if token.signature == possible_signatures.0 {
             Result::Ok(0)
-        } else if token.signature[1] == possible_signatures.1 {
+        } else if token.signature == possible_signatures.1 {
             Result::Ok(1)
         } else {
             Result::Err(VerificationError)
@@ -125,48 +112,53 @@ impl KeyPair {
 
 struct TokenSecret {
     pub(crate) ticket: Ticket,
-    pub(crate) additive_blind: [Scalar; 2],
-    pub(crate) multiplicative_blind: [Scalar; 2],
+    pub(crate) multiplicative_blind: Scalar,
 }
 
 pub struct TokenBlinded {
     secret: TokenSecret,
-    public: [RistrettoPoint; 2],
+    public: RistrettoPoint,
     pp: PublicParams,
 }
 
 impl TokenBlinded {
-    pub fn unsafe_unblind(&self, ts: &TokenSigned) -> Result<Token, zkp::ProofError> {
+    pub fn unsafe_unblind(&self, ts: &TokenSigned) -> Result<Token, or_dleq::errors::ProofError> {
+        let mut transcript = Transcript::new(b"OR-DLEQ");
+        let hashed_S = RistrettoPoint::hash_from_bytes::<Sha512>(&ts.s);
         let ticket = self.secret.ticket;
         // XXX: fix generation of S, it should integrate T'
-        let S = [
-            self.secret.multiplicative_blind[0] * RistrettoPoint::hash_from_bytes::<Sha512>(&ts.s)
-                + self.secret.additive_blind[0] * self.pp.gen[1],
-            self.secret.multiplicative_blind[1] * RistrettoPoint::hash_from_bytes::<Sha512>(&ts.s)
-                + self.secret.additive_blind[1] * self.pp.gen[1],
-        ];
-        let signature = [
-            self.secret.multiplicative_blind[0] * ts.signature
-                + self.secret.additive_blind[0] * self.pp.pk[0],
-            self.secret.multiplicative_blind[1] * ts.signature
-                + self.secret.additive_blind[1] * self.pp.pk[1],
-        ];
+        let signature = self.secret.multiplicative_blind * ts.signature;
+        let S = self.secret.multiplicative_blind * hashed_S;
 
-        Ok(Token {
-            ticket,
-            S,
-            signature,
-        })
+        let verification = or_dleq::verify_compact(
+            &ts.proof,
+            &mut transcript,
+            or_dleq::VerifyAssignments {
+                X0: &self.pp.pk[0].compress(),
+                X1: &self.pp.pk[1].compress(),
+                T: &self.public.compress(),
+                S: &hashed_S.compress(),
+                G: &self.pp.gen[0].compress(),
+                H: &self.pp.gen[1].compress(),
+                W: &ts.signature.compress(),
+            },
+        );
+        verification.map(|_|
+                         Token {
+                             ticket,
+                             S,
+                             signature,
+                         })
     }
 
-    pub fn unblind(self, ts: TokenSigned) -> Result<Token, zkp::ProofError> {
+    pub fn unblind(self, ts: TokenSigned) -> Result<Token, or_dleq::errors::ProofError> {
         self.unsafe_unblind(&ts)
     }
 
     pub fn to_bytes(&self) -> [u8; 64] {
         // XXX Fix this
-        let fst = self.public[0].compress().to_bytes();
-        let snd = self.public[1].compress().to_bytes();
+        let fst = self.public.compress().to_bytes();
+        let snd = self.public.compress().to_bytes();
         let mut ret = [0u8; 64];
 
         ret[..32].clone_from_slice(&fst);
@@ -182,11 +174,9 @@ impl TokenSecret {
     {
         let mut ticket = [0u8; 32];
         csrng.fill_bytes(&mut ticket);
-        let additive_blind = [Scalar::random(&mut csrng), Scalar::random(&mut csrng)];
-        let multiplicative_blind = [Scalar::random(&mut csrng), Scalar::random(&mut csrng)];
+        let multiplicative_blind = Scalar::random(&mut csrng);
         Self {
             ticket,
-            additive_blind,
             multiplicative_blind,
         }
     }
@@ -196,6 +186,7 @@ impl TokenSecret {
 pub struct TokenSigned {
     s: Ticket,
     signature: RistrettoPoint,
+    proof: crate::or_dleq::OrDleqProof,
 }
 
 impl TokenSigned {
@@ -211,8 +202,8 @@ impl TokenSigned {
 #[derive(Serialize, Deserialize)]
 pub struct Token {
     ticket: Ticket,
-    S: [RistrettoPoint; 2],
-    signature: [RistrettoPoint; 2],
+    S: RistrettoPoint,
+    signature: RistrettoPoint,
 }
 
 impl PublicParams {
@@ -222,12 +213,8 @@ impl PublicParams {
     {
         let secret = TokenSecret::generate(&mut csrng);
         let hashed_ticket = RistrettoPoint::hash_from_bytes::<Sha512>(&secret.ticket);
-        let public = [
-            secret.multiplicative_blind[0].invert()
-                * (hashed_ticket - secret.additive_blind[0] * self.gen[0]),
-            secret.multiplicative_blind[1].invert()
-                * (hashed_ticket - secret.additive_blind[1] * self.gen[0]),
-        ];
+        let public = secret.multiplicative_blind.invert() * hashed_ticket;
+
         // XXX we can use lifetimes here
         let pp = self.clone();
         TokenBlinded { secret, public, pp }

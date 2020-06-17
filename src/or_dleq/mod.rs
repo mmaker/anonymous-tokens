@@ -1,6 +1,6 @@
 // Author: Michele Orrù <berries@google.com>
 
-mod errors;
+pub mod errors;
 #[allow(non_snake_case)]
 pub mod proofs;
 

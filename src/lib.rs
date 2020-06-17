@@ -4,14 +4,21 @@ extern crate rand_core;
 #[macro_use]
 extern crate zkp;
 
+#[macro_use]
+extern crate serde;
+
 #[allow(non_snake_case)]
 pub mod pp;
 #[allow(non_snake_case)]
 pub mod ppnozk;
 
 #[allow(non_snake_case)]
+pub mod pmbt;
+
+#[allow(non_snake_case)]
 pub mod pmbtnozk;
 
+mod or_dleq;
 //#[allow(non_snake_case)]
 //pub mod construction4;
 
