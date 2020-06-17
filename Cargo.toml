@@ -10,15 +10,15 @@ keywords = ["cryptography"]
 [dependencies]
 failure="0.1.5"
 failure_derive="0.1.5"
-merlin = "1.2.0"
+merlin = "2.0.0"
 rand = "0.7.3"
 rand_core = "0.5.1"
-rand_chacha = "0.1"
+rand_chacha = "0.2.2"
 zkp="0.7.0"
 sha2="0.8.1"
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
-
+thiserror = "1"
 
 [dev-dependencies]
 criterion = "0.3"
