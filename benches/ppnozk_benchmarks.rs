@@ -10,7 +10,7 @@ use rand::thread_rng;
 use poc::ppnozk::*;
 
 fn bench_keygen(c: &mut Criterion) {
-    c.bench_function("ppnozk-keygen", move |b| {
+    c.bench_function("PPB.KeyGen", move |b| {
         let mut csrng = thread_rng();
         b.iter(|| {
             KeyPair::generate(&mut csrng);
@@ -19,7 +19,7 @@ fn bench_keygen(c: &mut Criterion) {
 }
 
 fn bench_tokengen(c: &mut Criterion) {
-    c.bench_function("ppnozk-tokengen", move |b| {
+    c.bench_function("PPB.User₀", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let ppnozk = PublicParams::from(&keypair);
@@ -31,7 +31,7 @@ fn bench_tokengen(c: &mut Criterion) {
 }
 
 fn bench_sign(c: &mut Criterion) {
-    c.bench_function("ppnozk-sign", move |b| {
+    c.bench_function("PPB.Sign₀", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let ppnozk = PublicParams::from(&keypair);
@@ -45,7 +45,7 @@ fn bench_sign(c: &mut Criterion) {
 }
 
 fn bench_unblind(c: &mut Criterion) {
-    c.bench_function("ppnozk-unblind", move |b| {
+    c.bench_function("PPB.User₁", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let ppnozk = PublicParams::from(&keypair);
@@ -59,7 +59,7 @@ fn bench_unblind(c: &mut Criterion) {
 }
 
 fn bench_redemption(c: &mut Criterion) {
-    c.bench_function("ppnozk-redeem", move |b| {
+    c.bench_function("PPB.Verify", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
 

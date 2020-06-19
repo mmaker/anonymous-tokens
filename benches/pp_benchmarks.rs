@@ -10,7 +10,7 @@ use rand::thread_rng;
 use poc::pp::*;
 
 fn bench_keygen(c: &mut Criterion) {
-    c.bench_function("pp-keygen", move |b| {
+    c.bench_function("PP.KeyGen", move |b| {
         let mut csrng = thread_rng();
         b.iter(|| {
             KeyPair::generate(&mut csrng);
@@ -19,7 +19,7 @@ fn bench_keygen(c: &mut Criterion) {
 }
 
 fn bench_tokengen(c: &mut Criterion) {
-    c.bench_function("pp-tokengen", move |b| {
+    c.bench_function("PP.User₀", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let pp = PublicParams::from(&keypair);
@@ -31,7 +31,7 @@ fn bench_tokengen(c: &mut Criterion) {
 }
 
 fn bench_sign(c: &mut Criterion) {
-    c.bench_function("pp-sign", move |b| {
+    c.bench_function("PP.Sign₀", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let pp = PublicParams::from(&keypair);
@@ -45,7 +45,7 @@ fn bench_sign(c: &mut Criterion) {
 }
 
 fn bench_unblind(c: &mut Criterion) {
-    c.bench_function("pp-unblind", move |b| {
+    c.bench_function("PP.User₁", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
         let pp = PublicParams::from(&keypair);
@@ -59,7 +59,7 @@ fn bench_unblind(c: &mut Criterion) {
 }
 
 fn bench_redemption(c: &mut Criterion) {
-    c.bench_function("pp-redeem", move |b| {
+    c.bench_function("PP.Verify", move |b| {
         let mut csrng = thread_rng();
         let keypair = KeyPair::generate(&mut csrng);
 
