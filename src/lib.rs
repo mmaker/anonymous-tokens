@@ -18,7 +18,7 @@ pub mod pmbt;
 #[allow(non_snake_case)]
 pub mod pmbtnozk;
 
-mod or_dleq;
+pub mod or_dleq;
 //#[allow(non_snake_case)]
 //pub mod construction4;
 

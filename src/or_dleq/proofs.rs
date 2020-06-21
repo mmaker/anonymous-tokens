@@ -17,26 +17,26 @@ pub struct OrDleqProof {
 }
 
 pub struct ProveAssignments<'a> {
-    pub(crate) x: &'a Scalar,
-    pub(crate) y: &'a Scalar,
-    pub(crate) b: &'a usize,
-    pub(crate) X0: &'a RistrettoPoint,
-    pub(crate) X1: &'a RistrettoPoint,
-    pub(crate) G: &'a RistrettoPoint,
-    pub(crate) H: &'a RistrettoPoint,
-    pub(crate) T: &'a RistrettoPoint,
-    pub(crate) S: &'a RistrettoPoint,
-    pub(crate) W: &'a RistrettoPoint,
+    pub x: &'a Scalar,
+    pub y: &'a Scalar,
+    pub b: &'a usize,
+    pub X0: &'a RistrettoPoint,
+    pub X1: &'a RistrettoPoint,
+    pub G: &'a RistrettoPoint,
+    pub H: &'a RistrettoPoint,
+    pub T: &'a RistrettoPoint,
+    pub S: &'a RistrettoPoint,
+    pub W: &'a RistrettoPoint,
 }
 
 pub struct VerifyAssignments<'a> {
-    pub(crate) X0: &'a CompressedRistretto,
-    pub(crate) X1: &'a CompressedRistretto,
-    pub(crate) G: &'a CompressedRistretto,
-    pub(crate) H: &'a CompressedRistretto,
-    pub(crate) T: &'a CompressedRistretto,
-    pub(crate) S: &'a CompressedRistretto,
-    pub(crate) W: &'a CompressedRistretto,
+    pub X0: &'a CompressedRistretto,
+    pub X1: &'a CompressedRistretto,
+    pub G: &'a CompressedRistretto,
+    pub H: &'a CompressedRistretto,
+    pub T: &'a CompressedRistretto,
+    pub S: &'a CompressedRistretto,
+    pub W: &'a CompressedRistretto,
 }
 
 pub fn prove_compact<'a>(
@@ -177,8 +177,8 @@ mod tests {
     fn it_works() {
         let mut csrng = rand::rngs::OsRng;
         let mut transcript = Transcript::new(b"test");
-        let x = Scalar::zero(); //random(&mut csrng);
-        let y = Scalar::zero(); //random(&mut csrng);
+        let x = Scalar::random(&mut csrng);
+        let y = Scalar::random(&mut csrng);
         let G = RistrettoPoint::random(&mut csrng);
         let H = RistrettoPoint::random(&mut csrng);
         let S = RistrettoPoint::random(&mut csrng);
@@ -187,9 +187,6 @@ mod tests {
         let X1 = RistrettoPoint::multiscalar_mul(&[x, y], &[G, H]);
         let X0 = RistrettoPoint::random(&mut csrng);
         let b = 1usize;
-
-        assert_eq!(X1, RistrettoPoint::identity());
-        assert_eq!(W, RistrettoPoint::identity());
 
         let proof = prove_compact(
             &mut transcript,
