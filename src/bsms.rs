@@ -3,9 +3,9 @@ use std::convert::TryInto;
 use rand::Rng;
 use rand_core::{CryptoRng, RngCore};
 
-use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
 use sha2::{Digest, Sha512};
 
 use crate::errors::VerificationError;
@@ -138,8 +138,8 @@ pub struct UserState {
     alphas: [[Scalar; 2]; 2],
     betas: [[Scalar; 2]; 2],
     t: [u8; 32],
-    blind_hs: [[RistrettoPoint; 2]; 2],
-    blind_y: [RistrettoPoint; 2],
+    blind_hs: [RistrettoPoint; 2],
+    blind_y: RistrettoPoint,
 }
 
 pub struct SigningKey([Scalar; 2]);
@@ -217,29 +217,21 @@ impl VerifierKey {
             [Scalar::random(csrng), Scalar::random(csrng)],
             [Scalar::random(csrng), Scalar::random(csrng)],
         ];
-        let rhos = [Scalar::random(csrng), Scalar::random(csrng)];
+        let rho = Scalar::random(csrng);
+
+        let blind_hs = [rho * hs[0], rho * hs[1]];
+        let blind_y = rho * y;
 
         let mut blind_commitments = [[[RistrettoPoint::default(); 2]; 2]; 2];
-        let mut blind_hs = [[RistrettoPoint::default(); 2]; 2];
-        let mut blind_y = [RistrettoPoint::default(); 2];
         let mut challenges = [Scalar::default(); 2];
         for d in 0..2usize {
-            blind_hs[d] = [rhos[d] * hs[0], rhos[d] * hs[1]];
-            blind_y[d] = rhos[d] * y;
             for b in 0..2usize {
                 blind_commitments[d][b][0] =
                     commitments[d][b][0] + &alphas[d][b] * &G + betas[d][b] * self.0[b];
-                blind_commitments[d][b][1] = rhos[d] * commitments[d][b][1]
-                    + alphas[d][b] * blind_hs[d][b]
-                    + betas[d][b] * blind_y[d];
+                blind_commitments[d][b][1] =
+                    rho * commitments[d][b][1] + alphas[d][b] * blind_hs[b] + betas[d][b] * blind_y;
             }
-            let e = random_oracle(
-                &self.0,
-                &t,
-                &blind_commitments[d],
-                &blind_y[d],
-                &blind_hs[d],
-            );
+            let e = random_oracle(&self.0, &t, &blind_commitments[d], &blind_y, &blind_hs);
             challenges[d] = e - betas[d][0] - betas[d][1];
         }
 
@@ -253,7 +245,11 @@ impl VerifierKey {
         (user_state, challenges)
     }
 
-    pub fn unblind(&self, user_state: UserState, blinded_response: BlindedResponse) -> Result<Token, VerificationError> {
+    pub fn unblind(
+        &self,
+        user_state: UserState,
+        blinded_response: BlindedResponse,
+    ) -> Result<Token, VerificationError> {
         self.unsafe_unblind(&user_state, &blinded_response)
     }
 
@@ -284,8 +280,8 @@ impl VerifierKey {
                 blind_responses[0] + alphas[clause][0],
                 blind_responses[1] + alphas[clause][1],
             ],
-            hs: blind_hs[clause],
-            y: blind_y[clause],
+            hs: blind_hs,
+            y: blind_y,
         };
 
         // instead of verifying the transcript, verify the token itself.
@@ -311,7 +307,10 @@ impl VerifierKey {
             ],
         ];
         let challenge = random_oracle(&self.0, &t, &commitments, &y, &hs);
-        if !hs[0].is_identity() && !hs[1].is_identity() && challenge == challenges[0] + challenges[1] {
+        if !hs[0].is_identity()
+            && !hs[1].is_identity()
+            && challenge == challenges[0] + challenges[1]
+        {
             Ok(())
         } else {
             Err(VerificationError)

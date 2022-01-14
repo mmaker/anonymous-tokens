@@ -6,7 +6,9 @@ use merlin::Transcript;
 use rand::thread_rng;
 
 use anonymous_tokens::or_dleq;
-use anonymous_tokens::pp::dleq::{ProveAssignments, VerifyAssignments, prove_batchable, verify_batchable, self};
+use anonymous_tokens::pp::dleq::{
+    self, prove_batchable, verify_batchable, ProveAssignments, VerifyAssignments,
+};
 
 #[allow(non_snake_case)]
 fn bench_dleq_prove(c: &mut Criterion) {

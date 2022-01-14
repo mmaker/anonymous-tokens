@@ -6,7 +6,6 @@ use anonymous_tokens::ppnozk::{KeyPair, PublicParams};
 use criterion::Criterion;
 use rand::thread_rng;
 
-
 fn bench_keygen(c: &mut Criterion) {
     c.bench_function("PPB.KeyGen", move |b| {
         let mut csrng = thread_rng();

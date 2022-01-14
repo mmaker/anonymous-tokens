@@ -2,11 +2,10 @@
 extern crate criterion;
 extern crate rand;
 
-
 use criterion::Criterion;
 use rand::thread_rng;
 
-use anonymous_tokens::pmbt::{PublicParams, KeyPair};
+use anonymous_tokens::pmbt::{KeyPair, PublicParams};
 
 fn bench_keygen(c: &mut Criterion) {
     c.bench_function("PMBT.KeyGen", move |b| {
