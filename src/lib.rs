@@ -19,10 +19,10 @@ pub mod pmbt;
 pub mod pmbtnozk;
 
 pub mod or_dleq;
-//#[allow(non_snake_case)]
-//pub mod construction4;
 
 pub mod errors;
+
+pub mod bsms;
 
 /// A ticket is the unique identifier associated to an anonymous token.
 type Ticket = [u8; 32];

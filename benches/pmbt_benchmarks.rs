@@ -10,7 +10,7 @@ use rand::thread_rng;
 use poc::pmbt::*;
 
 fn bench_keygen(c: &mut Criterion) {
-   c.bench_function("PMBT.KeyGen", move |b| {
+    c.bench_function("PMBT.KeyGen", move |b| {
         let mut csrng = thread_rng();
         b.iter(|| {
             KeyPair::generate(&mut csrng);

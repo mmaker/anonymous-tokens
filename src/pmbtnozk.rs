@@ -23,6 +23,7 @@ pub struct KeyPair {
     pub(crate) sk: [[Scalar; 2]; 2],
 }
 
+#[allow(unused)] // this disables the warning on `proof` being unused.
 #[derive(Clone)]
 pub struct PublicParams {
     pub(crate) pk: [RistrettoPoint; 2],

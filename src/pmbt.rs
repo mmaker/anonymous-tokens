@@ -143,12 +143,11 @@ impl TokenBlinded {
                 W: &ts.signature.compress(),
             },
         );
-        verification.map(|_|
-                         Token {
-                             ticket,
-                             S,
-                             signature,
-                         })
+        verification.map(|_| Token {
+            ticket,
+            S,
+            signature,
+        })
     }
 
     pub fn unblind(self, ts: TokenSigned) -> Result<Token, or_dleq::errors::ProofError> {

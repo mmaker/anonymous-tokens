@@ -5,8 +5,8 @@ extern crate poc;
 use criterion::Criterion;
 use rand::thread_rng;
 
-use poc::pp::dleq;
 use poc::or_dleq;
+use poc::pp::dleq;
 
 #[allow(non_snake_case)]
 fn bench_dleq_prove(c: &mut Criterion) {
@@ -75,8 +75,6 @@ fn bench_dleq_verify(c: &mut Criterion) {
         });
     });
 }
-
-
 
 #[allow(non_snake_case)]
 fn bench_ordleq_prove(c: &mut Criterion) {
@@ -158,24 +156,21 @@ fn bench_ordleq_verify(c: &mut Criterion) {
 
         b.iter(|| {
             let _verification = or_dleq::verify_compact(
-            &proof,
-            &mut transcript,
-            or_dleq::VerifyAssignments {
-                X0: &X0.compress(),
-                X1: &X1.compress(),
-                G: &G.compress(),
-                H: &H.compress(),
-                T: &T.compress(),
-                S: &S.compress(),
-                W: &W.compress(),
-            },
-        );
-
+                &proof,
+                &mut transcript,
+                or_dleq::VerifyAssignments {
+                    X0: &X0.compress(),
+                    X1: &X1.compress(),
+                    G: &G.compress(),
+                    H: &H.compress(),
+                    T: &T.compress(),
+                    S: &S.compress(),
+                    W: &W.compress(),
+                },
+            );
         });
     });
 }
-
-
 
 criterion_group! {
     name = nizk_benchmarks;

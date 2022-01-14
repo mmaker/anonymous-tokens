@@ -1,11 +1,13 @@
 [package]
-name = "poc"
+name = "anonymous-tokens"
 version = "0.1.0"
 authors = ["Michele Orrù <michele.orru@ens.fr>"]
 edition = "2018"
 keywords = ["cryptography"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib"]
+
 
 [dependencies]
 failure="0.1.5"
@@ -18,6 +20,7 @@ sha2="0.8.1"
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2.1"
 thiserror = "1"
+wasm-bindgen = "0.2"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -48,4 +51,9 @@ harness = false
 
 [[bench]]
 name = "nizk_benchmarks"
+harness = false
+
+
+[[bench]]
+name = "bsms_benchmarks"
 harness = false
