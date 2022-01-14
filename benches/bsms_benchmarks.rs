@@ -48,6 +48,7 @@ fn bench_bsms(c: &mut Criterion) {
         b.iter(|| vk.unsafe_unblind(&user_state, &blinded_response));
     });
 
+
     c.bench_function("BSMS.verify", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);

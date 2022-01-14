@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use rand::Rng;
 use rand_core::{CryptoRng, RngCore};
 
-use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_POINT as G, traits::IsIdentity};
+use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use sha2::{Digest, Sha512};
@@ -68,10 +68,10 @@ impl SigningKey {
 
         let mut commitments = [[[RistrettoPoint::default(); 2]; 2]; 2];
         // K_0, C_0
-        commitments[clause][pmb] = [k_b * G, k_b * hs[pmb]];
+        commitments[clause][pmb] = [&k_b * &G, k_b * hs[pmb]];
         // K_1, C_1
         commitments[clause][1 - pmb] = [
-            (r_1b + e_1b * self.0[1 - pmb]) * G,
+            &(r_1b + e_1b * self.0[1 - pmb]) * &G,
             r_1b * hs[1 - pmb] + e_1b * y,
         ];
 
@@ -147,7 +147,7 @@ pub struct VerifierKey([RistrettoPoint; 2]);
 
 impl From<&SigningKey> for VerifierKey {
     fn from(sk: &SigningKey) -> Self {
-        Self([sk.0[0] * G, sk.0[1] * G])
+        Self([&sk.0[0] * &G, &sk.0[1] * &G])
     }
 }
 
@@ -228,7 +228,7 @@ impl VerifierKey {
             blind_y[d] = rhos[d] * y;
             for b in 0..2usize {
                 blind_commitments[d][b][0] =
-                    commitments[d][b][0] + alphas[d][b] * G + betas[d][b] * self.0[b];
+                    commitments[d][b][0] + &alphas[d][b] * &G + betas[d][b] * self.0[b];
                 blind_commitments[d][b][1] = rhos[d] * commitments[d][b][1]
                     + alphas[d][b] * blind_hs[d][b]
                     + betas[d][b] * blind_y[d];
@@ -302,11 +302,11 @@ impl VerifierKey {
         } = token;
         let commitments = [
             [
-                responses[0] * G + challenges[0] * self.0[0],
+                &responses[0] * &G + challenges[0] * self.0[0],
                 responses[0] * hs[0] + challenges[0] * y,
             ],
             [
-                responses[1] * G + challenges[1] * self.0[1],
+                &responses[1] * &G + challenges[1] * self.0[1],
                 responses[1] * hs[1] + challenges[1] * y,
             ],
         ];
