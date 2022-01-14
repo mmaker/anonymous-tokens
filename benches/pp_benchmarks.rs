@@ -1,13 +1,10 @@
 #[macro_use]
 extern crate criterion;
-extern crate rand;
 
-extern crate poc;
-
+use anonymous_tokens::pp::{PublicParams, KeyPair};
 use criterion::Criterion;
 use rand::thread_rng;
 
-use poc::pp::*;
 
 fn bench_keygen(c: &mut Criterion) {
     c.bench_function("PP.KeyGen", move |b| {

@@ -1,58 +1,58 @@
 [package]
 name = "anonymous-tokens"
-version = "0.1.0"
-authors = ["Michele Orrù <michele.orru@ens.fr>"]
-edition = "2018"
+description = "A library for anonymous tokens."
+version = "0.0.1"
+authors = ["Michele Orrù <michele.orru@berkeley.edu>"]
+edition = "2021"
 keywords = ["cryptography"]
-
-[lib]
-crate-type = ["cdylib"]
 
 
 [dependencies]
 failure="0.1.5"
 failure_derive="0.1.5"
 merlin = "2.0.0"
-rand = "0.7.3"
-rand_core = "0.5.1"
-rand_chacha = "0.2.2"
-sha2="0.8.1"
+rand_chacha = "0.2"
+rand = "0.7"
+rand_core = "0.5"
+sha2="0.9"
+digest = "0.9"
 serde = { version = "1.0", features = ["derive"] }
-bincode = "1.2.1"
+bincode = "1.3.3"
 thiserror = "1"
 wasm-bindgen = "0.2"
+blake2 = "0.10.2"
 
 [dev-dependencies]
 criterion = "0.3"
 
 [dependencies.curve25519-dalek]
-version = "2.0.0"
+package = "curve25519-dalek-ng"
+version = "3"
 features = ["serde", "alloc"]
 
 [dependencies.zkp]
-version="0.7.0"
+version="0.8.0"
 features = ["bench"]
 
-[[bench]]
-name = "pp_benchmarks"
-harness = false
-
-[[bench]]
-name = "ppnozk_benchmarks"
-harness = false
-
-[[bench]]
-name = "pmbtnozk_benchmarks"
-harness = false
-
-[[bench]]
-name = "pmbt_benchmarks"
-harness = false
-
-[[bench]]
-name = "nizk_benchmarks"
-harness = false
-
+# [[bench]]
+# name = "pp_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "ppnozk_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "pmbtnozk_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "pmbt_benchmarks"
+# harness = false
+#
+# [[bench]]
+# name = "nizk_benchmarks"
+# harness = false
 
 [[bench]]
 name = "bsms_benchmarks"

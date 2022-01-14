@@ -1,12 +1,12 @@
 #[macro_use]
 extern crate criterion;
-extern crate poc;
 
 use criterion::Criterion;
+use merlin::Transcript;
 use rand::thread_rng;
 
-use poc::or_dleq;
-use poc::pp::dleq;
+use anonymous_tokens::or_dleq;
+use anonymous_tokens::pp::dleq::{ProveAssignments, VerifyAssignments, prove_batchable, verify_batchable, self};
 
 #[allow(non_snake_case)]
 fn bench_dleq_prove(c: &mut Criterion) {
@@ -21,11 +21,11 @@ fn bench_dleq_prove(c: &mut Criterion) {
         let T = RistrettoPoint::random(&mut csrng);
         let X = x * G;
         let W = x * G;
-        let mut transcript = dleq::Transcript::new(b"dleq-bench");
+        let mut transcript = Transcript::new(b"dleq-bench");
         b.iter(|| {
-            let (_proof, _) = dleq::prove_batchable(
+            let (_proof, _) = prove_batchable(
                 &mut transcript,
-                dleq::ProveAssignments {
+                ProveAssignments {
                     x: &x,
                     X: &X,
                     T: &T,
@@ -50,7 +50,7 @@ fn bench_dleq_verify(c: &mut Criterion) {
         let T = RistrettoPoint::random(&mut csrng);
         let X = x * G;
         let W = x * G;
-        let mut transcript = dleq::Transcript::new(b"dleq-bench");
+        let mut transcript = merlin::Transcript::new(b"dleq-bench");
         let (proof, points) = dleq::prove_batchable(
             &mut transcript,
             dleq::ProveAssignments {
@@ -62,10 +62,10 @@ fn bench_dleq_verify(c: &mut Criterion) {
             },
         );
         b.iter(|| {
-            let _verification = dleq::verify_batchable(
+            let _verification = verify_batchable(
                 &proof,
                 &mut transcript,
-                dleq::VerifyAssignments {
+                VerifyAssignments {
                     X: &points.X,
                     T: &points.T,
                     G: &points.G,
@@ -81,7 +81,6 @@ fn bench_ordleq_prove(c: &mut Criterion) {
     use curve25519_dalek::ristretto::RistrettoPoint;
     use curve25519_dalek::scalar::Scalar;
     use curve25519_dalek::traits::MultiscalarMul;
-    use merlin::Transcript;
 
     c.bench_function("ORDLEQ.Prove", move |b| {
         let mut csrng = rand::rngs::OsRng;
@@ -122,7 +121,6 @@ fn bench_ordleq_verify(c: &mut Criterion) {
     use curve25519_dalek::ristretto::RistrettoPoint;
     use curve25519_dalek::scalar::Scalar;
     use curve25519_dalek::traits::MultiscalarMul;
-    use merlin::Transcript;
 
     c.bench_function("ORDLEQ.Verify", move |b| {
         let mut csrng = rand::rngs::OsRng;
