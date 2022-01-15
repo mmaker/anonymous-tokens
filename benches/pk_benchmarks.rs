@@ -59,6 +59,19 @@ fn bench_blor(c: &mut Criterion) {
         let token = vk.unblind(user_state, blinded_response).unwrap();
         b.iter(|| vk.verify(&token));
     });
+
+
+    c.bench_function("BLOR.read", move |b| {
+        let mut csrng = rand::rngs::OsRng;
+        let sk = SigningKey::new(&mut csrng);
+        let vk = VerifierKey::from(&sk);
+        let pmb = csrng.gen::<bool>();
+        let (commitment_state, commitment) = sk.commit(&mut csrng, pmb);
+        let (user_state, challenges) = vk.blind(&mut csrng, commitment);
+        let blinded_response = sk.unsafe_respond(&commitment_state, &challenges);
+        let token = vk.unblind(user_state, blinded_response).unwrap();
+        b.iter(|| sk.read(&token));
+    });
 }
 
 criterion_group! {

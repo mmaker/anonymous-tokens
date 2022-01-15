@@ -39,10 +39,7 @@ pub struct VerifyAssignments<'a> {
     pub W: &'a CompressedRistretto,
 }
 
-pub fn prove_compact(
-    transcript: &mut Transcript,
-    assignments: ProveAssignments,
-) -> OrDleqProof {
+pub fn prove_compact(transcript: &mut Transcript, assignments: ProveAssignments) -> OrDleqProof {
     transcript.append_message(b"G", assignments.G.compress().as_bytes());
     transcript.append_message(b"H", assignments.H.compress().as_bytes());
     transcript.append_message(b"T", assignments.T.compress().as_bytes());
