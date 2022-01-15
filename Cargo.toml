@@ -2,7 +2,7 @@
 name = "anonymous-tokens"
 description = "A library for anonymous tokens."
 version = "0.0.1"
-authors = ["Michele Orrù <michele.orru@berkeley.edu>"]
+authors = [""]
 edition = "2021"
 keywords = ["cryptography"]
 
