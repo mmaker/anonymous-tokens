@@ -1,24 +1,24 @@
 #[macro_use]
 extern crate criterion;
 
-use anonymous_tokens::bsms::{SigningKey, VerifierKey};
+use anonymous_tokens::pk::blor::{SigningKey, VerifierKey};
 use criterion::Criterion;
 use rand::Rng;
 
 #[allow(non_snake_case)]
-fn bench_bsms(c: &mut Criterion) {
-    c.bench_function("BSMS.KeyGen", move |b| {
+fn bench_blor(c: &mut Criterion) {
+    c.bench_function("BLOR.KeyGen", move |b| {
         let mut csrng = rand::rngs::OsRng;
         b.iter(|| SigningKey::new(&mut csrng));
     });
 
-    c.bench_function("BSMS.commit", move |b| {
+    c.bench_function("BLOR.commit", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);
         b.iter(|| sk.commit(&mut csrng, false));
     });
 
-    c.bench_function("BSMS.blind", move |b| {
+    c.bench_function("BLOR.blind", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);
         let vk = VerifierKey::from(&sk);
@@ -27,7 +27,7 @@ fn bench_bsms(c: &mut Criterion) {
         b.iter(|| vk.unsafe_blind(&mut csrng, &commitment));
     });
 
-    c.bench_function("BSMS.response", move |b| {
+    c.bench_function("BLOR.response", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);
         let vk = VerifierKey::from(&sk);
@@ -37,7 +37,7 @@ fn bench_bsms(c: &mut Criterion) {
         b.iter(|| sk.unsafe_respond(&commitment_state, &challenges));
     });
 
-    c.bench_function("BSMS.unblind", move |b| {
+    c.bench_function("BLOR.unblind", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);
         let vk = VerifierKey::from(&sk);
@@ -48,7 +48,7 @@ fn bench_bsms(c: &mut Criterion) {
         b.iter(|| vk.unsafe_unblind(&user_state, &blinded_response));
     });
 
-    c.bench_function("BSMS.verify", move |b| {
+    c.bench_function("BLOR.verify", move |b| {
         let mut csrng = rand::rngs::OsRng;
         let sk = SigningKey::new(&mut csrng);
         let vk = VerifierKey::from(&sk);
@@ -64,6 +64,6 @@ fn bench_bsms(c: &mut Criterion) {
 criterion_group! {
     name = bsms_benchmarks;
     config = Criterion::default();
-    targets = bench_bsms
+    targets = bench_blor
 }
 criterion_main!(bsms_benchmarks);

@@ -8,11 +8,12 @@ use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
 use sha2::{Digest, Sha512};
 
+use crate::Ticket;
 use crate::errors::VerificationError;
 
 #[allow(unused)]
 pub struct Token {
-    t: [u8; 32],
+    t: Ticket,
     challenges: [Scalar; 2],
     responses: [Scalar; 2],
     hs: [RistrettoPoint; 2],
@@ -28,7 +29,7 @@ pub struct BlindedCommitmentState {
 
 #[derive(Serialize, Deserialize)]
 pub struct Commitment {
-    s: [u8; 32],
+    s: Ticket,
     y: RistrettoPoint,
     commitments: [[[RistrettoPoint; 2]; 2]; 2],
 }
@@ -80,7 +81,7 @@ impl SigningKey {
             [RistrettoPoint::random(csrng), RistrettoPoint::random(csrng)],
         ];
 
-        // s is an array [u8; 32] so conversion always succeeds.
+        // s is an array Ticket so conversion always succeeds.
         let s = s[..32].try_into().unwrap();
         let blinded_commitment = Commitment { s, y, commitments };
         let commitment_state = BlindedCommitmentState {
@@ -137,7 +138,7 @@ impl SigningKey {
 pub struct UserState {
     alphas: [[Scalar; 2]; 2],
     betas: [[Scalar; 2]; 2],
-    t: [u8; 32],
+    t: Ticket,
     blind_hs: [RistrettoPoint; 2],
     blind_y: RistrettoPoint,
 }
@@ -159,7 +160,7 @@ impl SigningKey {
 
 fn random_oracle(
     xs: &[RistrettoPoint; 2],
-    t: &[u8; 32],
+    t: &Ticket,
     commitments: &[[RistrettoPoint; 2]; 2],
     y: &RistrettoPoint,
     hs: &[RistrettoPoint; 2],
