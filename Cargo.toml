@@ -4,7 +4,9 @@ description = "A library for anonymous tokens."
 version = "0.0.1"
 authors = [""]
 edition = "2021"
-keywords = ["cryptography"]
+keywords = ["cryptography", "signatures", "anonymous credentials"]
+categories = ["cryptography"]
+
 
 
 [dependencies]
