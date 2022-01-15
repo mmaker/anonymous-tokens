@@ -1,4 +1,5 @@
 use thiserror::Error;
+
 /// An error during proving or verification, such as a verification failure.
 #[derive(Debug, Error)]
 pub enum ProofError {

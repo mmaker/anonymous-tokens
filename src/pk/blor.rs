@@ -1,3 +1,8 @@
+//! A public-key anonymous token with private metadata bit.
+//!
+//!
+//!
+//!
 use std::convert::TryInto;
 
 use rand::Rng;
@@ -8,8 +13,8 @@ use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
 use sha2::{Digest, Sha512};
 
-use crate::Ticket;
 use crate::errors::VerificationError;
+use crate::Ticket;
 
 #[allow(unused)]
 pub struct Token {

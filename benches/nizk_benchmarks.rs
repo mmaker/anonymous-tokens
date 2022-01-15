@@ -5,8 +5,8 @@ use criterion::Criterion;
 use merlin::Transcript;
 use rand::thread_rng;
 
-use anonymous_tokens::or_dleq;
-use anonymous_tokens::pp::dleq::{
+use anonymous_tokens::sk::or_dleq;
+use anonymous_tokens::sk::pp::dleq::{
     self, prove_batchable, verify_batchable, ProveAssignments, VerifyAssignments,
 };
 

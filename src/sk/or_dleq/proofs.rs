@@ -5,7 +5,7 @@ use merlin::Transcript;
 use rand_chacha::ChaChaRng;
 use rand_core::SeedableRng;
 
-use crate::or_dleq::errors::ProofError;
+use crate::sk::or_dleq::errors::ProofError;
 use crate::zkp::toolbox::TranscriptProtocol;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -174,7 +174,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
+    fn test_or_dleq_correctness() {
         let mut csrng = rand::rngs::OsRng;
         let mut transcript = Transcript::new(b"test");
         let x = Scalar::random(&mut csrng);

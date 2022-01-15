@@ -34,25 +34,9 @@ version="0.8.0"
 features = ["bench"]
 
 [[bench]]
-name = "pp_benchmarks"
+name = "sk_benchmarks"
 harness = false
 
 [[bench]]
-name = "ppnozk_benchmarks"
-harness = false
-
-[[bench]]
-name = "pmbtnozk_benchmarks"
-harness = false
-
-[[bench]]
-name = "pmbt_benchmarks"
-harness = false
-
-[[bench]]
-name = "nizk_benchmarks"
-harness = false
-
-[[bench]]
-name = "bsms_benchmarks"
+name = "pk_benchmarks"
 harness = false

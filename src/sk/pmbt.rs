@@ -12,7 +12,8 @@ use zkp::Transcript;
 use crate::errors::VerificationError;
 use crate::Ticket;
 
-use crate::or_dleq;
+use super::or_dleq;
+use super::or_dleq::OrDleqProof;
 
 pub struct KeyPair {
     pub(crate) pp: PublicParams,
@@ -185,7 +186,7 @@ impl TokenSecret {
 pub struct TokenSigned {
     s: Ticket,
     signature: RistrettoPoint,
-    proof: crate::or_dleq::OrDleqProof,
+    proof: OrDleqProof,
 }
 
 impl TokenSigned {
@@ -220,12 +221,8 @@ impl PublicParams {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
     #[test]
-    fn it_works() {
+    fn test_correctness() {
         let mut csrng = rand::rngs::OsRng;
         let keypair = KeyPair::generate(&mut csrng);
 
@@ -237,4 +234,3 @@ mod tests {
         assert!(token.is_ok());
         assert!(keypair.verify(&token.unwrap()).is_ok());
     }
-}
