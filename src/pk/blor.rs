@@ -1,7 +1,33 @@
 //! A public-key anonymous token with private metadata bit.
 //!
+//! A token \\((t, \sigma)\\) is composed of a string \\(t\\) -- called  a [`Ticket`],
+//! and a "signature" \\( \sigma \\). The server can embed a hidden, private
+//! boolean `pmb` inside the token.
+//! The token can be verified by any party
+//! in possession of the [`VerifierKey`],
+//! while the private metadata can be read only by the server, in possession of the
+//! signing key [`SigningKey`].
 //!
+//! Here's an example of how to user these anonymous tokens:
+//! ```
+//! use anonymous_tokens::pk::blor::{SigningKey, VerifierKey};
+//! let csrng = &mut rand::rngs::OsRng;
 //!
+//! // The server genrates the signing key.
+//! let signing_key = SigningKey::new(csrng);
+//! // From the signing key, it is always possible to derive the verification key.
+//! let verification_key = VerifierKey::from(&signing_key);
+//!
+//! // The server sends over the commitment.
+//! let (srv_state, commitment) = signing_key.commit(csrng, false);
+//! // The user computes the challenge and sends it to the server.
+//! let (usr_state, challenge) = verification_key.blind(csrng, commitment);
+//! // The server computes the response.
+//! let response = signing_key.respond(srv_state, challenge);
+//! // Finally, the user derives the token from the response.
+//! let token = verification_key.unblind(usr_state, response);
+//! assert!(token.is_ok());
+//! ````
 //!
 use std::convert::TryInto;
 
@@ -11,19 +37,70 @@ use rand_core::{CryptoRng, RngCore};
 use curve25519_dalek::ristretto::RistrettoPoint;
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE as G, traits::IsIdentity};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
 use crate::errors::VerificationError;
 use crate::Ticket;
 
-#[allow(unused)]
-pub struct Token {
+
+/// The key used to sign new tokens.
+///
+/// This struct is just a wrapper around a pair \\((x_0, x_1) \in \FF_p\\)
+/// constituting the signing key.
+pub struct SigningKey([Scalar; 2]);
+
+/// The verification key, used to verify new tokens.
+///
+/// This struct is just a wrapper around the group elements \\((X_0, X_1) \in \GG\\)
+/// constituting the public params.
+pub struct VerifierKey([RistrettoPoint; 2]);
+
+
+/// The user state, after computing the challenge.
+pub struct UserState {
+    alphas: [[Scalar; 2]; 2],
+    betas: [[Scalar; 2]; 2],
     t: Ticket,
+    blind_hs: [RistrettoPoint; 2],
+    blind_y: RistrettoPoint,
+}
+
+impl From<&SigningKey> for VerifierKey {
+    fn from(sk: &SigningKey) -> Self {
+        Self([&sk.0[0] * &G, &sk.0[1] * &G])
+    }
+}
+
+impl SigningKey {
+    pub fn new<R: RngCore + CryptoRng>(csrng: &mut R) -> Self {
+        Self([Scalar::random(csrng), Scalar::random(csrng)])
+    }
+}
+
+
+/// The publicly-verifiable anonymous token BLOR.
+///
+/// A [`Token`] is the pair \\((t, \sigma)\\) composing the anonymous token.
+#[derive(Serialize, Deserialize)]
+pub struct Token {
+    /// A random string associated to the token itself.
+    t: Ticket,
+    // The challenges of the sigma protocol.
     challenges: [Scalar; 2],
+    // The responses in the sigma protocol.
     responses: [Scalar; 2],
+    /// The elements \\((H_0, H_1) \in \GG^2\\).
     hs: [RistrettoPoint; 2],
+    /// The element \\(Y \in \GG\\), containing the private metadata.
     y: RistrettoPoint,
 }
+
+
+/// The state of the server after the first message.
+///
+/// At this point in the protocol, the server holds the simulated part of
+/// the statement, the chosen private metadata bit and clause.
 pub struct BlindedCommitmentState {
     clause: usize,
     k_b: Scalar,
@@ -32,6 +109,12 @@ pub struct BlindedCommitmentState {
     pmb: usize,
 }
 
+
+/// The first message sent by the server.
+///
+/// This struct is composed of the random string \\(s\\),
+/// the DH \\(Y\\) containing the private metadata bit,
+/// and the commitments for the first round of the sigma protocol.
 #[derive(Serialize, Deserialize)]
 pub struct Commitment {
     s: Ticket,
@@ -39,6 +122,10 @@ pub struct Commitment {
     commitments: [[[RistrettoPoint; 2]; 2]; 2],
 }
 
+/// The second (and last) message sent by the server.
+///
+/// This struct is composed of the challenge shares \\((e_0, e_1) \in \FF_p^2\\)
+/// and the responses \\((r_0, r_1) \in \FF_p^2\\).
 #[derive(Serialize, Deserialize)]
 pub struct BlindedResponse {
     clause: usize,
@@ -47,6 +134,12 @@ pub struct BlindedResponse {
 }
 
 impl SigningKey {
+
+    /// Produce the first server message.
+    ///
+    /// Produces a new commitment, and returns a pair ([`BlindedCommitmentState`], [`Commitment`])
+    /// The commitment can be serialized and sent over the wire, while the commitment state is meant to be
+    /// held secret by the signer and to be used upon receiving the user's challenge.
     pub fn commit<R: RngCore + CryptoRng>(
         &self,
         csrng: &mut R,
@@ -100,6 +193,12 @@ impl SigningKey {
         (commitment_state, blinded_commitment)
     }
 
+
+    /// Produce the second (and last) server message.
+    ///
+    /// Using the `commitment_state` and the `challenges` provided by the user, return a [`BlindedResponse`]
+    /// that constitutes the response of the server.
+    /// This function will consume both the state and the challenges, as they are not meant to be re-used.
     pub fn respond(
         &self,
         commitment_state: BlindedCommitmentState,
@@ -108,6 +207,7 @@ impl SigningKey {
         self.unsafe_respond(&commitment_state, &challenges)
     }
 
+    #[doc(hidden)]
     pub fn unsafe_respond(
         &self,
         commitment_state: &BlindedCommitmentState,
@@ -140,29 +240,9 @@ impl SigningKey {
     }
 }
 
-pub struct UserState {
-    alphas: [[Scalar; 2]; 2],
-    betas: [[Scalar; 2]; 2],
-    t: Ticket,
-    blind_hs: [RistrettoPoint; 2],
-    blind_y: RistrettoPoint,
-}
 
-pub struct SigningKey([Scalar; 2]);
-pub struct VerifierKey([RistrettoPoint; 2]);
 
-impl From<&SigningKey> for VerifierKey {
-    fn from(sk: &SigningKey) -> Self {
-        Self([&sk.0[0] * &G, &sk.0[1] * &G])
-    }
-}
-
-impl SigningKey {
-    pub fn new<R: RngCore + CryptoRng>(csrng: &mut R) -> Self {
-        Self([Scalar::random(csrng), Scalar::random(csrng)])
-    }
-}
-
+/// The random oracle as used within the signing and verification protocols.
 fn random_oracle(
     xs: &[RistrettoPoint; 2],
     t: &Ticket,
@@ -185,6 +265,10 @@ fn random_oracle(
     Scalar::from_hash(h)
 }
 impl VerifierKey {
+    /// The user message.
+    ///
+    /// Upon receiving as input a `commitment` from the server, it produces a challenge thanks to the `csrng`.
+    /// Additionally, it returns the [`UserState`] that holds the blinding factors used in the challenge generation.
     pub fn blind<R: RngCore + CryptoRng>(
         &self,
         csrng: &mut R,
@@ -193,6 +277,7 @@ impl VerifierKey {
         self.unsafe_blind(csrng, &commitment)
     }
 
+    #[doc(hidden)]
     pub fn unsafe_blind<R: RngCore + CryptoRng>(
         &self,
         csrng: &mut R,
@@ -251,6 +336,10 @@ impl VerifierKey {
         (user_state, challenges)
     }
 
+    //// Computes a token.
+    ///
+    /// Return a new [`Token`], computed unbliding the response of the server,
+    /// if the transcript is correct.
     pub fn unblind(
         &self,
         user_state: UserState,
@@ -259,6 +348,7 @@ impl VerifierKey {
         self.unsafe_unblind(&user_state, &blinded_response)
     }
 
+    #[doc(hidden)]
     pub fn unsafe_unblind(
         &self,
         &UserState {
@@ -294,6 +384,9 @@ impl VerifierKey {
         self.verify(&token).map(|()| token)
     }
 
+    /// Verify a token.
+    ///
+    /// Returns a result indicating validity of a token.
     pub fn verify(&self, token: &Token) -> Result<(), VerificationError> {
         let Token {
             t,
