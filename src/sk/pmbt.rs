@@ -221,16 +221,16 @@ impl PublicParams {
     }
 }
 
-    #[test]
-    fn test_correctness() {
-        let mut csrng = rand::rngs::OsRng;
-        let keypair = KeyPair::generate(&mut csrng);
+#[test]
+fn test_correctness() {
+    let mut csrng = rand::rngs::OsRng;
+    let keypair = KeyPair::generate(&mut csrng);
 
-        let pp = PublicParams::from(&keypair);
-        let blinded_token = pp.generate_token(&mut csrng);
-        let signed_token = keypair.sign(&mut csrng, &blinded_token.to_bytes(), 0);
-        assert!(signed_token.is_some());
-        let token = blinded_token.unblind(signed_token.unwrap());
-        assert!(token.is_ok());
-        assert!(keypair.verify(&token.unwrap()).is_ok());
-    }
+    let pp = PublicParams::from(&keypair);
+    let blinded_token = pp.generate_token(&mut csrng);
+    let signed_token = keypair.sign(&mut csrng, &blinded_token.to_bytes(), 0);
+    assert!(signed_token.is_some());
+    let token = blinded_token.unblind(signed_token.unwrap());
+    assert!(token.is_ok());
+    assert!(keypair.verify(&token.unwrap()).is_ok());
+}

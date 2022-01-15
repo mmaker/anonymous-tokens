@@ -16,7 +16,8 @@ extern crate zkp;
 #[macro_use]
 extern crate serde;
 
-pub mod errors;
+mod errors;
+pub use errors::VerificationError;
 
 pub mod pk;
 pub mod sk;

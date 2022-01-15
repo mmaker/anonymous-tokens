@@ -1,6 +1,7 @@
 use std::error;
 use std::fmt;
 
+/// An error during verification, indicating verification failure.
 #[derive(Debug, Clone)]
 pub struct VerificationError;
 
