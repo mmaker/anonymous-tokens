@@ -43,7 +43,6 @@ use sha2::{Digest, Sha512};
 use crate::errors::VerificationError;
 use crate::Ticket;
 
-
 /// The key used to sign new tokens.
 ///
 /// This struct is just a wrapper around a pair \\((x_0, x_1) \in \FF_p\\)
@@ -55,7 +54,6 @@ pub struct SigningKey([Scalar; 2]);
 /// This struct is just a wrapper around the group elements \\((X_0, X_1) \in \GG\\)
 /// constituting the public params.
 pub struct VerifierKey([RistrettoPoint; 2]);
-
 
 /// The user state, after computing the challenge.
 pub struct UserState {
@@ -78,7 +76,6 @@ impl SigningKey {
     }
 }
 
-
 /// The publicly-verifiable anonymous token BLOR.
 ///
 /// A [`Token`] is the pair \\((t, \sigma)\\) composing the anonymous token.
@@ -96,7 +93,6 @@ pub struct Token {
     y: RistrettoPoint,
 }
 
-
 /// The state of the server after the first message.
 ///
 /// At this point in the protocol, the server holds the simulated part of
@@ -108,7 +104,6 @@ pub struct BlindedCommitmentState {
     e_1b: Scalar,
     pmb: usize,
 }
-
 
 /// The first message sent by the server.
 ///
@@ -134,7 +129,6 @@ pub struct BlindedResponse {
 }
 
 impl SigningKey {
-
     /// Produce the first server message.
     ///
     /// Produces a new commitment, and returns a pair ([`BlindedCommitmentState`], [`Commitment`])
@@ -193,7 +187,6 @@ impl SigningKey {
         (commitment_state, blinded_commitment)
     }
 
-
     /// Produce the second (and last) server message.
     ///
     /// Using the `commitment_state` and the `challenges` provided by the user, return a [`BlindedResponse`]
@@ -238,9 +231,25 @@ impl SigningKey {
             responses,
         }
     }
+
+    /// Read off the private metadata bit from the token `token`.
+    ///
+    /// This function returns a [`Result`] that is either a [`VerificationError`] (if verification fails)
+    /// or the private metadata bit assciated to the token.
+    pub fn read(&self, token: &Token) -> Result<bool, VerificationError> {
+        VerifierKey::from(self).verify(token)?;
+        let y = token.y;
+        let hs = token.hs;
+
+        if y == self.0[0] * hs[0] && y != self.0[1] * hs[1] {
+            Ok(false)
+        } else if y == self.0[1] * hs[1] && y != self.0[0] * hs[0] {
+            Ok(true)
+        } else {
+            Err(VerificationError)
+        }
+    }
 }
-
-
 
 /// The random oracle as used within the signing and verification protocols.
 fn random_oracle(
@@ -264,6 +273,7 @@ fn random_oracle(
         .chain(hs[1].compress().as_bytes());
     Scalar::from_hash(h)
 }
+
 impl VerifierKey {
     /// The user message.
     ///
@@ -432,4 +442,23 @@ fn test_correctness() {
 
     let token = token.unwrap();
     assert!(verification_key.verify(&token).is_ok())
+}
+
+#[test]
+fn test_read() {
+    let csrng = &mut rand::rngs::OsRng;
+
+    let signing_key = SigningKey::new(csrng);
+    let verification_key = VerifierKey::from(&signing_key);
+
+    let (srv_state, commitment) = signing_key.commit(csrng, false);
+    let (usr_state, challenge) = verification_key.blind(csrng, commitment);
+    let response = signing_key.respond(srv_state, challenge);
+    let token = verification_key.unblind(usr_state, response);
+    assert!(token.is_ok());
+
+    let token = token.unwrap();
+    let pmb_result = signing_key.read(&token);
+    assert!(pmb_result.is_ok());
+    assert!(!pmb_result.unwrap())
 }
