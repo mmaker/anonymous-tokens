@@ -205,7 +205,7 @@ impl TokenSigned {
     }
 
     pub fn from_bytes(s: &[u8]) -> bincode::Result<Self> {
-        bincode::deserialize(&s)
+        bincode::deserialize(s)
     }
 }
 

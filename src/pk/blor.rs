@@ -325,12 +325,12 @@ impl VerifierKey {
 
         let mut blind_commitments = [[[RistrettoPoint::default(); 2]; 2]; 2];
         let mut challenges = [Scalar::default(); 2];
-        for d in 0..2usize {
-            for b in 0..2usize {
+        for d in 0..2 {
+            for (b, &h) in blind_hs.iter().enumerate() {
                 blind_commitments[d][b][0] =
                     commitments[d][b][0] + &alphas[d][b] * &G + betas[d][b] * self.0[b];
                 blind_commitments[d][b][1] =
-                    rho * commitments[d][b][1] + alphas[d][b] * blind_hs[b] + betas[d][b] * blind_y;
+                    rho * commitments[d][b][1] + alphas[d][b] * h + betas[d][b] * blind_y;
             }
             let e = random_oracle(&self.0, &t, &blind_commitments[d], &blind_y, &blind_hs);
             challenges[d] = e - betas[d][0] - betas[d][1];
@@ -415,7 +415,7 @@ impl VerifierKey {
                 responses[1] * hs[1] + challenges[1] * y,
             ],
         ];
-        let challenge = random_oracle(&self.0, &t, &commitments, &y, &hs);
+        let challenge = random_oracle(&self.0, t, &commitments, y, hs);
         if !hs[0].is_identity()
             && !hs[1].is_identity()
             && challenge == challenges[0] + challenges[1]
